@@ -115,7 +115,7 @@ DiskDriver(void *arg)
     int sectorsTouched = 0; // represent the sectors touched while looping though
     int start;
     Pool *currentTask;
-    USLOSS_DeviceRequest *req;
+    USLOSS_DeviceRequest *req = malloc(sizeof(USLOSS_DeviceRequest));
     /****
     repeat
         choose request with shortest seek from current track
@@ -241,8 +241,8 @@ P2_DiskRead(int unit, int first, int sectors, void *buffer)
 {
     int index = P1_GetPid();
     int rc;
-    char* indexStr;
-    USLOSS_DeviceRequest *req;
+    char* indexStr[50];
+    USLOSS_DeviceRequest *req = malloc(sizeof(USLOSS_DeviceRequest));
     // validate parameters
     // give request to the unit's device driver
     pools[index] = (Pool *)malloc(sizeof(Pool));
@@ -256,8 +256,8 @@ P2_DiskRead(int unit, int first, int sectors, void *buffer)
     pools[index]->unit = unit;
     pools[index]->track = first / 16;
     pools[index]->buffer = buffer;
-    sprintf(indexStr,"%i",index);
-    rc = P1_CondCreate(indexStr, lockId,  &pools[index]->condId);
+    sprintf(*indexStr,"%i",index);
+    rc = P1_CondCreate(*indexStr, lockId,  &pools[index]->condId);
     assert(rc == P1_SUCCESS);
     // wait until device driver completes the request
     if(P1_Wait(pools[index]->condId));                      // note this might not be spinning
@@ -276,8 +276,8 @@ P2_DiskWrite(int unit, int first, int sectors, void *buffer)
 {
     int index = P1_GetPid();
     int rc;
-    char* indexStr;
-    USLOSS_DeviceRequest *req;
+    char* indexStr[50];
+    USLOSS_DeviceRequest *req = malloc(sizeof(USLOSS_DeviceRequest));
     // validate parameters
     // give request to the unit's device driver
     pools[index] = (Pool *)malloc(sizeof(Pool));
@@ -291,8 +291,8 @@ P2_DiskWrite(int unit, int first, int sectors, void *buffer)
     pools[index]->unit = unit;
     pools[index]->track = first / 16;
     pools[index]->buffer = buffer;
-    sprintf(indexStr,"%i",index);
-    rc = P1_CondCreate(indexStr, lockId, &pools[index]->condId);
+    sprintf(*indexStr,"%i",index);
+    rc = P1_CondCreate(*indexStr, lockId, &pools[index]->condId);
     assert(rc == P1_SUCCESS);
     // wait until device driver completes the request
     if(P1_Wait(pools[index]->condId));                      // note might not be spinning
@@ -311,8 +311,8 @@ P2_DiskSize(int unit, int *sector, int *disk)
 {
     int index = P1_GetPid();
     int rc;
-    char* indexStr;
-    USLOSS_DeviceRequest *req;
+    char* indexStr[50];
+    USLOSS_DeviceRequest *req = malloc(sizeof(USLOSS_DeviceRequest));
     // validate parameter
     // give request to the unit's device driver
     pools[index] = (Pool *)malloc(sizeof(Pool));
@@ -325,8 +325,8 @@ P2_DiskSize(int unit, int *sector, int *disk)
     pools[index]->unit = unit;
     pools[index]->track = 0;
     pools[index]->buffer = NULL;
-    sprintf(indexStr,"%i",index);
-    rc = P1_CondCreate(indexStr, lockId, &pools[index]->condId);
+    sprintf(*indexStr,"%i",index);
+    rc = P1_CondCreate(*indexStr, lockId, &pools[index]->condId);
     assert(rc == P1_SUCCESS);
     // wait until device driver completes the request
     if(P1_Wait(pools[index]->condId));                      // note might not be spinning
