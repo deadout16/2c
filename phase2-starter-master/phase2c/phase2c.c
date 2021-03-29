@@ -1,3 +1,5 @@
+// James Brechtel and Zach 
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -85,10 +87,9 @@ P2DiskInit(void)
  */
 
 void 
-P2DiskShutdown(void) 
-{
-    P1_DeviceAbort(USLOSS_DISK_DEV, 1);
-    P1_DeviceAbort(USLOSS_DISK_DEV, 2);
+P2DiskShutdown(void) {
+    if(P1_DeviceAbort(USLOSS_DISK_DEV, 1));
+    if(P1_DeviceAbort(USLOSS_DISK_DEV, 2));
 }
 
 /*
@@ -109,7 +110,7 @@ DiskDriver(void *arg)
     int status;
     int rc;
     int shortestIndex; // index of pools with the shortest job
-    int shortestDistance
+    int shortestDistance;
     int i;
     int sectorsTouched = 0; // represent the sectors touched while looping though
     int start;
@@ -135,7 +136,7 @@ DiskDriver(void *arg)
                 break;
             }
         }
-        P1_Lock(lockId);
+        if(P1_Lock(lockId));
         // finds the shortest distance for the head to move
         for(i = 0; i < P1_MAXPROC; i++){
             // If there is nothing there go on to the next one
@@ -157,14 +158,14 @@ DiskDriver(void *arg)
                 shortestIndex = i;
             }
         }
-        P1_Unlock(lockId);
+        if(P1_Unlock(lockId));
 
         // seeks proper track if necessary
         currentTask = pools[shortestIndex];
         if(currentTask->track != currentTrack[unit]){
             req->opr = USLOSS_DISK_SEEK;
-            req->reg1 = currentTask->track;
-            USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, req);
+            req->reg1 = (void*) currentTask->track;
+            if(USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, req));
             // Makes sure the device has returned properly from changing track
             rc = P1_DeviceWait(USLOSS_DISK_DEV, unit, &status);
             assert(status == USLOSS_DEV_READY);
@@ -178,7 +179,7 @@ DiskDriver(void *arg)
         while(1){
             // check for size
             if(currentTask->task->opr == USLOSS_DISK_TRACKS){
-                USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, currentTask->task);
+                if(USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, currentTask->task));
                 rc = P1_DeviceWait(USLOSS_DISK_DEV, unit, &status);
                 assert(status == USLOSS_DEV_READY);
                 if (rc == P1_WAIT_ABORTED) {
@@ -194,7 +195,7 @@ DiskDriver(void *arg)
                 }
                 // writes/reads sector
                 // TODO: give only 512 bytes of the buffer to read/write each time
-                USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, currentTask->task);
+                if(USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, currentTask->task));
                 rc = P1_DeviceWait(USLOSS_DISK_DEV, unit, &status);
                 assert(status == USLOSS_DEV_READY);
                 if (rc == P1_WAIT_ABORTED) {
@@ -210,8 +211,8 @@ DiskDriver(void *arg)
             }
             // go to next track
             req->opr = USLOSS_DISK_SEEK;
-            req->reg1 = currentTrack[unit] + 1;
-            USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, req);
+            req->reg1 = (void *) currentTrack[unit] + 1;
+            if(USLOSS_DeviceOutput(USLOSS_DISK_DEV, unit, req));
             // Makes sure the device has returned properly from changing track
             rc = P1_DeviceWait(USLOSS_DISK_DEV, unit, &status);
             assert(status == USLOSS_DEV_READY);
@@ -222,7 +223,7 @@ DiskDriver(void *arg)
             currentTrack[unit]++;
             start = 0;
         }
-        P1_Signal(currentTask->condId);
+        if(P1_Signal(currentTask->condId));
     }
     USLOSS_Console("DiskDriver PID %d unit %d exiting.\n", P1_GetPid(), unit);
     return 0;
@@ -240,13 +241,14 @@ P2_DiskRead(int unit, int first, int sectors, void *buffer)
 {
     int index = P1_GetPid();
     int rc;
+    char* indexStr;
     USLOSS_DeviceRequest *req;
     // validate parameters
     // give request to the unit's device driver
     pools[index] = (Pool *)malloc(sizeof(Pool));
 
     req->opr = USLOSS_DISK_READ;
-    req->reg1 = first;
+    req->reg1 = (void*) first;
     req->reg2 = buffer;
     pools[index]->task = req;
     pools[index]->first = first % 16;
@@ -254,11 +256,12 @@ P2_DiskRead(int unit, int first, int sectors, void *buffer)
     pools[index]->unit = unit;
     pools[index]->track = first / 16;
     pools[index]->buffer = buffer;
-    rc = P1_CondCreate((toString(index)), lockId, pools[index]->condId);
+    sprintf(indexStr,"%i",index);
+    rc = P1_CondCreate(indexStr, lockId,  &pools[index]->condId);
     assert(rc == P1_SUCCESS);
     // wait until device driver completes the request
-    P1_Wait(pools[index]->condId);
-    free(pools[index])
+    if(P1_Wait(pools[index]->condId));                      // note this might not be spinning
+    free(pools[index]);
     pools[index] = NULL;
     return P1_SUCCESS;
 }
@@ -273,13 +276,14 @@ P2_DiskWrite(int unit, int first, int sectors, void *buffer)
 {
     int index = P1_GetPid();
     int rc;
+    char* indexStr;
     USLOSS_DeviceRequest *req;
     // validate parameters
     // give request to the unit's device driver
     pools[index] = (Pool *)malloc(sizeof(Pool));
 
     req->opr = USLOSS_DISK_WRITE;
-    req->reg1 = first;
+    req->reg1 = (void *)first;
     req->reg2 = buffer;
     pools[index]->task = req;
     pools[index]->first = first % 16;
@@ -287,11 +291,12 @@ P2_DiskWrite(int unit, int first, int sectors, void *buffer)
     pools[index]->unit = unit;
     pools[index]->track = first / 16;
     pools[index]->buffer = buffer;
-    rc = P1_CondCreate((toString(index)), lockId, pools[index]->condId);
+    sprintf(indexStr,"%i",index);
+    rc = P1_CondCreate(indexStr, lockId, &pools[index]->condId);
     assert(rc == P1_SUCCESS);
     // wait until device driver completes the request
-    P1_Wait(pools[index]->condId);
-    free(pools[index])
+    if(P1_Wait(pools[index]->condId));                      // note might not be spinning
+    free(pools[index]);
     pools[index] = NULL;
     return P1_SUCCESS;
 }
@@ -306,6 +311,7 @@ P2_DiskSize(int unit, int *sector, int *disk)
 {
     int index = P1_GetPid();
     int rc;
+    char* indexStr;
     USLOSS_DeviceRequest *req;
     // validate parameter
     // give request to the unit's device driver
@@ -319,13 +325,14 @@ P2_DiskSize(int unit, int *sector, int *disk)
     pools[index]->unit = unit;
     pools[index]->track = 0;
     pools[index]->buffer = NULL;
-    rc = P1_CondCreate((toString(index)), lockId, pools[index]->condId);
+    sprintf(indexStr,"%i",index);
+    rc = P1_CondCreate(indexStr, lockId, &pools[index]->condId);
     assert(rc == P1_SUCCESS);
     // wait until device driver completes the request
-    P1_Wait(pools[index]->condId);
+    if(P1_Wait(pools[index]->condId));                      // note might not be spinning
     *disk = *disk * 16;
     *sector = 512;
-    free(pools[index])
+    free(pools[index]);
     pools[index] = NULL;
     return P1_SUCCESS;
 }
